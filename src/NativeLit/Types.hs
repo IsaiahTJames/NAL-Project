@@ -1,3 +1,4 @@
+{- HLINT ignore "Use camelCase" -}
 module NativeLit.Types where
 
 -- | Tribal nation affiliation
