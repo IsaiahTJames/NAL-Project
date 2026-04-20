@@ -20,16 +20,6 @@
   (major1) == 4 && (major2) <  18 || \
   (major1) == 4 && (major2) == 18 && (minor) <= 3)
 #endif /* MIN_VERSION_base */
-/* package gloss-1.13.2.2 */
-#ifndef VERSION_gloss
-#define VERSION_gloss "1.13.2.2"
-#endif /* VERSION_gloss */
-#ifndef MIN_VERSION_gloss
-#define MIN_VERSION_gloss(major1,major2,minor) (\
-  (major1) <  1 || \
-  (major1) == 1 && (major2) <  13 || \
-  (major1) == 1 && (major2) == 13 && (minor) <= 2)
-#endif /* MIN_VERSION_gloss */
 /* package nativelit-0.1.0.0 */
 #ifndef VERSION_nativelit
 #define VERSION_nativelit "0.1.0.0"
