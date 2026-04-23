@@ -33,8 +33,6 @@ data Genre
   | LiteraryFiction
   | Nonfiction
   | ShortStory
-  | Mythology
-  | Autobiography
   deriving (Show, Eq)
 
 -- | A Native American author or poet

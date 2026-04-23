@@ -15,6 +15,25 @@ worksByGenre g = filter (\w -> genre w == g) works
 authorsByTribe :: Tribe -> [Author]
 authorsByTribe t = filter (\a -> tribe a == t) authors
 
+-- | Count of works by this author in the given genre.
+worksByAuthorInGenre :: Int -> Genre -> [Work]
+worksByAuthorInGenre aid g =
+  filter (\w -> authorRef w == aid && genre w == g) works
+
+-- | All authors who have at least one work in the given genre,
+--   sorted by the number of matching works (most first).
+authorsByGenre :: Genre -> [Author]
+authorsByGenre g =
+  let matching = filter (\a -> not (null (worksByAuthorInGenre (authorId a) g))) authors
+      countFor a = length (worksByAuthorInGenre (authorId a) g)
+      sortByCount [] = []
+      sortByCount (x:xs) =
+        sortByCount bigger ++ [x] ++ sortByCount smaller
+        where
+          bigger  = filter (\a -> countFor a >  countFor x) xs
+          smaller = filter (\a -> countFor a <= countFor x) xs
+  in sortByCount matching
+
 -- | Convert a character to lowercase
 toLowerChar :: Char -> Char
 toLowerChar c
@@ -71,12 +90,39 @@ sortByYear (x:xs) =
 sortByYearDesc :: [Work] -> [Work]
 sortByYearDesc = reverse . sortByYear
 
+-- | Sort works alphabetically by title (case-insensitive).
+sortByTitle :: [Work] -> [Work]
+sortByTitle [] = []
+sortByTitle (x:xs) =
+  sortByTitle smaller ++ [x] ++ sortByTitle bigger
+  where
+    key w   = toLowerStr (title w)
+    smaller = filter (\w -> key w <= key x) xs
+    bigger  = filter (\w -> key w >  key x) xs
+
 -- | Find works by tribe AND genre combined
 worksByTribeAndGenre :: Tribe -> Genre -> [Work]
 worksByTribeAndGenre t g =
   let tribeAuthors = authorsByTribe t
       tribeAuthorIds = map authorId tribeAuthors
   in filter (\w -> genre w == g && authorRef w `elem` tribeAuthorIds) works
+
+-- | Find works matching ANY of the given tribes AND ANY of the given genres.
+--   An empty list for either axis means "no filter on that axis".
+--   Examples:
+--     worksByTribesAndGenres [] []                 = all works
+--     worksByTribesAndGenres [Navajo] []           = all Navajo works
+--     worksByTribesAndGenres [] [Poetry]           = all poetry works
+--     worksByTribesAndGenres [Navajo, Cherokee]
+--                            [Poetry, Memoir]      = works that are
+--                                                    (Navajo OR Cherokee) AND
+--                                                    (Poetry OR Memoir)
+worksByTribesAndGenres :: [Tribe] -> [Genre] -> [Work]
+worksByTribesAndGenres ts gs =
+  let matchingAuthorIds = map authorId (filter (\a -> tribe a `elem` ts) authors)
+      tribeMatches w    = null ts || authorRef w `elem` matchingAuthorIds
+      genreMatches w    = null gs || genre w `elem` gs
+  in filter (\w -> tribeMatches w && genreMatches w) works
 
 -- | Return authors sorted by number of works (most first)
 mostProlificAuthors :: [Author]
