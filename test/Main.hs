@@ -1,4 +1,5 @@
-module Main (main) where
+module Main where
+import NativeLit.Render (runApp)
 
 main :: IO ()
-main = putStrLn "Test suite not yet implemented."
+main = runApp

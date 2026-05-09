@@ -1,4 +1,6 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
+
 module NativeLit.Storage
   ( saveSession
   , loadSession
@@ -29,7 +31,6 @@ emptySession :: Session
 emptySession = Session { sessionCart = [], sessionRecent = [] }
 
 -- | Sanitize a username into a safe filename (lowercase alphanumeric only).
---   "Isaiah James" becomes "isaiahjames".
 sanitize :: String -> String
 sanitize = filter isAlphaNum . map toLower
 
@@ -46,15 +47,12 @@ sessionPath name = do
   return (dir </> (sanitize name ++ ".session"))
 
 -- | Persist a session to disk for the given username.
---   Creates ~/.nativelit/ if it doesn't exist.
---   Silently swallows errors so a save failure never crashes the app.
 saveSession :: String -> Session -> IO ()
 saveSession name s = do
   (do
      dir  <- dataDir
      createDirectoryIfMissing True dir
      path <- sessionPath name
-     -- Use openFile + hClose explicitly so we don't hold onto a handle.
      h <- openFile path WriteMode
      hPutStr h (show s)
      hClose h)
@@ -63,7 +61,6 @@ saveSession name s = do
      return ())
 
 -- | Load a saved session for the given username.
---   Returns emptySession if no file exists or the file is corrupt.
 loadSession :: String -> IO Session
 loadSession name = do
   path   <- sessionPath name
@@ -74,7 +71,7 @@ loadSession name = do
       result <- (do
         h <- openFile path ReadMode
         contents <- hGetContents h
-        -- Force evaluation before closing handle (lazy IO trap).
+        -- Force evaluation before closing handle (the "Bang" ! makes this happen now!)
         let !parsed = case reads contents of
                         [(s, _)] -> Just s
                         _        -> Nothing

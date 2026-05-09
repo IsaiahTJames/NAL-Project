@@ -4,9 +4,14 @@ module NativeLit.Render where
 import NativeLit.Types
 import NativeLit.Database
 import NativeLit.Search
+import NativeLit.Storage
 import Data.Char (toLower)
-import Data.List (intercalate)
-import System.IO (hSetBuffering, stdout, BufferMode(..))
+import Data.List (intercalate, sortBy)
+import Data.Ord (comparing, Down(..))
+import System.IO (hSetBuffering, stdout, BufferMode(..), IOMode(..), withFile, hPutStrLn)
+import System.Random (randomRIO)
+import System.Directory (createDirectoryIfMissing, getHomeDirectory)
+import System.FilePath ((</>))
 import Layoutz
 
 -- ============================================================
@@ -61,6 +66,100 @@ countInCart :: [Work] -> Cart -> Int
 countInCart ws c = length (filter (`inCart` c) ws)
 
 -- ============================================================
+-- SORT MODES
+-- ============================================================
+
+-- | Sort modes for author lists. Cycles in order shown.
+data AuthorSort
+  = AuthorByName
+  | AuthorByWorkCount
+  | AuthorByTribe
+  deriving (Show, Eq, Enum, Bounded)
+
+nextAuthorSort :: AuthorSort -> AuthorSort
+nextAuthorSort s
+  | s == maxBound = minBound
+  | otherwise     = succ s
+
+sortAuthors :: AuthorSort -> [Author] -> [Author]
+sortAuthors AuthorByName      = sortBy (comparing (map toLower . authorName))
+sortAuthors AuthorByWorkCount = sortBy (comparing (Down . length . worksByAuthor . authorId))
+sortAuthors AuthorByTribe     = sortBy (comparing (showTribe . tribe))
+
+authorSortLabel :: AuthorSort -> String
+authorSortLabel AuthorByName      = "Name (A-Z)"
+authorSortLabel AuthorByWorkCount = "Most Works"
+authorSortLabel AuthorByTribe     = "Tribe (A-Z)"
+
+-- | Sort modes for work lists.
+data WorkSort
+  = WorkByTitle
+  | WorkByYearNew
+  | WorkByYearOld
+  | WorkByAuthor
+  deriving (Show, Eq, Enum, Bounded)
+
+nextWorkSort :: WorkSort -> WorkSort
+nextWorkSort s
+  | s == maxBound = minBound
+  | otherwise     = succ s
+
+sortWorks :: WorkSort -> [Work] -> [Work]
+sortWorks WorkByTitle   = sortByTitle
+sortWorks WorkByYearNew = sortBy (comparing (Down . yearPub))
+sortWorks WorkByYearOld = sortByYear
+sortWorks WorkByAuthor  = sortBy (comparing authorOfWorkName)
+  where
+    authorOfWorkName w = case authorOfWork w of
+      Just a  -> map toLower (authorName a)
+      Nothing -> ""
+
+workSortLabel :: WorkSort -> String
+workSortLabel WorkByTitle   = "Title (A-Z)"
+workSortLabel WorkByYearNew = "Year (newest)"
+workSortLabel WorkByYearOld = "Year (oldest)"
+workSortLabel WorkByAuthor  = "Author (A-Z)"
+
+-- ============================================================
+-- APP STATE & PERSISTENCE
+-- ============================================================
+
+data AppState = AppState
+  { stCart   :: Cart
+  , stRecent :: [Work]
+  } deriving Show
+
+emptyAppState :: AppState
+emptyAppState = AppState { stCart = [], stRecent = [] }
+
+maxRecent :: Int
+maxRecent = 10
+
+touchRecent :: Work -> [Work] -> [Work]
+touchRecent w ws = take maxRecent (w : filter (/= w) ws)
+
+toSession :: AppState -> Session
+toSession st = Session
+  { sessionCart   = map (\(w, r) -> (workId w, r)) (stCart st)
+  , sessionRecent = map workId (stRecent st)
+  }
+
+fromSession :: Session -> AppState
+fromSession s = AppState
+  { stCart   = [(w, r) | (i, r) <- sessionCart s
+                       , Just w  <- [lookupWork i]]
+  , stRecent = [w      | i      <- sessionRecent s
+                       , Just w  <- [lookupWork i]]
+  }
+  where
+    lookupWork i = case filter (\w -> workId w == i) works of
+                     (w:_) -> Just w
+                     []    -> Nothing
+
+persist :: String -> AppState -> IO ()
+persist name st = saveSession name (toSession st)
+
+-- ============================================================
 -- ENTRY POINT
 -- ============================================================
 
@@ -69,7 +168,38 @@ runLibrary = do
   hSetBuffering stdout NoBuffering
   printBanner
   name <- getUsername
-  mainMenu name []
+  session <- loadSession name
+  let appState = fromSession session
+  if null (stCart appState) && null (stRecent appState)
+    then do
+      putStrLn $ "\nWelcome, " ++ name ++ "!\n"
+      mainMenu name appState
+    else
+      welcomeBack name appState
+
+welcomeBack :: String -> AppState -> IO ()
+welcomeBack name st = do
+  let total  = cartSize (stCart st)
+      readN  = length (filter snd (stCart st))
+  putStrLn ""
+  putStrLn $ render $ row
+    [ sage   $ statusCard "Welcome back" name
+    , orange $ statusCard "Reading List" (show total ++ " works")
+    , turquoise $ statusCard "Read" (show readN ++ " / " ++ show total)
+    ]
+  putStrLn ""
+  case stRecent st of
+    []     -> return ()
+    recent -> putStrLn $ render $
+      withBorder BorderRound $
+      turquoise $
+      box "Recently Viewed"
+        (map (text . formatRecentLine) (zip [1..] (take 5 recent)))
+  putStrLn ""
+  mainMenu name st
+
+formatRecentLine :: (Int, Work) -> String
+formatRecentLine (i, w) = show i ++ ". " ++ title w ++ " (" ++ show (yearPub w) ++ ")"
 
 -- ============================================================
 -- BANNER & HELPERS
@@ -102,16 +232,15 @@ getUsername = do
     then do
       putStrLn "Please enter a name."
       getUsername
-    else do
-      putStrLn $ "\nWelcome, " ++ name ++ "!\n"
-      return name
+    else return name
 
 -- ============================================================
 -- MAIN MENU
 -- ============================================================
 
-mainMenu :: String -> Cart -> IO ()
-mainMenu name cart = do
+mainMenu :: String -> AppState -> IO ()
+mainMenu name st = do
+  let cart = stCart st
   putStrLn ""
   putStrLn $ render $ row
     [ sage   $ statusCard "Reader" name
@@ -132,57 +261,161 @@ mainMenu name cart = do
                  , amber $ text "(Year Range)" ]
       , text "[7] Top 10 Most Prolific Authors"
       , text "[8] View Reading List"
+      , tightRow [ text "[V] Recently Viewed "
+                 , amber $ text ("(" ++ show (length (stRecent st)) ++ ")") ]
+      , tightRow [ text "[R] "
+                 , amber $ text "Surprise me " 
+                 , text "(random pick)" ]
+      , text "[T] Library Stats"
       , text "[9] Quit"
       ]
   putStrLn ""
   choice <- prompt "> "
-  case choice of
-    "1" -> browseAuthors name cart authors
-    "2" -> tribeMenu name cart
-    "3" -> genreMenu name cart
-    "4" -> tribeAndGenreMenu name cart
-    "5" -> searchByName name cart
-    "6" -> eraMenu name cart
-    "7" -> showMostProlific name cart
+  case map toLower choice of
+    "1" -> browseAuthors name st AuthorByName authors
+    "2" -> tribeMenu name st
+    "3" -> genreMenu name st
+    "4" -> tribeAndGenreMenu name st
+    "5" -> searchByName name st
+    "6" -> eraMenu name st
+    "7" -> showMostProlific name st
     "8" -> do
-      newCart <- viewCart name cart
-      mainMenu name newCart
-    "9" -> putStrLn "\nGoodbye!\n"
+      newSt <- viewCart name st
+      mainMenu name newSt
+    "v" -> do
+      newSt <- viewRecent name st
+      mainMenu name newSt
+    "r" -> do
+      newSt <- surpriseMe name st
+      mainMenu name newSt
+    "t" -> do
+      showStats name st
+      mainMenu name st
+    "9" -> do
+      persist name st
+      putStrLn "\nGoodbye! Your reading list has been saved.\n"
     _   -> do
       putStrLn "Invalid choice, try again."
-      mainMenu name cart
+      mainMenu name st
 
 -- ============================================================
--- BROWSE AUTHORS
+-- SURPRISE ME (random pick)
 -- ============================================================
 
-browseAuthors :: String -> Cart -> [Author] -> IO ()
-browseAuthors name cart [] = do
-  putStrLn "\nNo authors found.\n"
-  mainMenu name cart
-browseAuthors name cart filtered = do
+surpriseMe :: String -> AppState -> IO AppState
+surpriseMe name st
+  | null works = do
+      putStrLn "No works in the library."
+      return st
+  | otherwise = do
+      idx <- randomRIO (0, length works - 1)
+      let w = works !! idx
+      putStrLn ""
+      putStrLn $ render $ center $
+        orange $ text "*** Surprise pick! ***"
+      case authorOfWork w of
+        Just a  -> workDetail name st w a Nothing
+        Nothing -> do
+          putStrLn "Author not found for that work."
+          return st
+
+-- ============================================================
+-- LIBRARY STATS
+-- ============================================================
+
+showStats :: String -> AppState -> IO ()
+showStats _ st = do
+  let totalAuthors = length authors
+      totalWorks   = length works
+      uniqueTribes = length (uniqueOn tribe authors)
+      years        = map yearPub works
+      yearRange    = (minimum years, maximum years)
+      mostTribe    = mostFrequentBy (showTribe . tribe) authors
+      mostProlific = case mostProlificAuthors of
+                       (a:_) -> authorName a ++ " (" ++
+                                show (length (worksByAuthor (authorId a))) ++
+                                " works)"
+                       []    -> "n/a"
+      cart   = stCart st
+      added  = cartSize cart
+      readN  = length (filter snd cart)
+  putStrLn ""
+  putStrLn $ render $
+    withBorder BorderDouble $
+    turquoise $
+    box "Library Stats"
+      [ tightRow [ text "Total authors:        ", amber $ text (show totalAuthors) ]
+      , tightRow [ text "Total works:          ", amber $ text (show totalWorks) ]
+      , tightRow [ text "Tribes represented:   ", amber $ text (show uniqueTribes) ]
+      , tightRow [ text "Year range:           "
+                 , amber $ text (show (fst yearRange) ++ " - " ++ show (snd yearRange)) ]
+      , tightRow [ text "Most-represented:     ", amber $ text mostTribe ]
+      , tightRow [ text "Most prolific:        ", amber $ text mostProlific ]
+      ]
   putStrLn ""
   putStrLn $ render $
     withBorder BorderRound $
-    box ("Authors (" ++ show (length filtered) ++ ")")
-      (map (authorRowL cart) (zip [1..] filtered))
+    sage $
+    box "Your Progress"
+      [ tightRow [ text "Works in your list:   ", amber $ text (show added) ]
+      , tightRow [ text "Works read:           "
+                 , amber $ text (show readN ++ " / " ++ show added) ]
+      ]
   putStrLn ""
   putStrLn $ render $ amber $
-    text "[0] Back  |  [H] Home  |  [L] Reading List  |  Enter author number:"
+    text "Press Enter to return."
+  _ <- getLine
+  return ()
+
+-- | Helper: get unique values when projected with f.
+uniqueOn :: Eq b => (a -> b) -> [a] -> [b]
+uniqueOn f = go . map f
+  where go []     = []
+        go (x:xs) = x : go (filter (/= x) xs)
+
+-- | Helper: find the most frequent value when projected with f.
+mostFrequentBy :: Eq b => (a -> b) -> [a] -> b
+mostFrequentBy f xs =
+  let groups = [(g, length (filter (\x -> f x == g) xs)) | g <- uniqueOn f xs]
+      best   = sortBy (comparing (Down . snd)) groups
+  in case best of
+       ((g, _):_) -> g
+       []         -> error "empty input to mostFrequentBy"
+
+-- ============================================================
+-- BROWSE AUTHORS (with sort modes)
+-- ============================================================
+
+browseAuthors :: String -> AppState -> AuthorSort -> [Author] -> IO ()
+browseAuthors name st _ [] = do
+  putStrLn "\nNo authors found.\n"
+  mainMenu name st
+browseAuthors name st sortMode filtered = do
+  let cart   = stCart st
+      sorted = sortAuthors sortMode filtered
+  putStrLn ""
+  putStrLn $ render $
+    withBorder BorderRound $
+    box ("Authors (" ++ show (length sorted) ++ ") -- sorted by " ++ authorSortLabel sortMode)
+      (map (authorRowL cart) (zip [1..] sorted))
+  putStrLn ""
+  putStrLn $ render $ amber $
+    text "[0] Back  |  [H] Home  |  [L] List  |  [S] Sort  |  Enter author #:"
   choice <- prompt "> "
   case map toLower choice of
-    "0" -> mainMenu name cart
-    "h" -> mainMenu name cart
+    "0" -> mainMenu name st
+    "h" -> mainMenu name st
+    "s" -> browseAuthors name st (nextAuthorSort sortMode) filtered
     "l" -> do
-      newCart <- viewCart name cart
-      browseAuthors name newCart filtered
+      newSt <- viewCart name st
+      browseAuthors name newSt sortMode filtered
     _ -> case reads choice of
-      [(n, "")] | n >= 1 && n <= length filtered -> do
-        newCart <- authorDetail name cart (filtered !! (n - 1))
-        browseAuthors name newCart filtered
+      [(n, "")] | n >= 1 && n <= length sorted -> do
+        newSt <- authorDetail name st (sorted !! (n - 1))
+        browseAuthors name newSt sortMode filtered
       _ -> do
         putStrLn "Invalid choice."
-        browseAuthors name cart filtered
+        browseAuthors name st sortMode filtered
 
 authorRowL :: Cart -> (Int, Author) -> L
 authorRowL cart (i, a) =
@@ -202,11 +435,12 @@ authorRowL cart (i, a) =
 -- BROWSE AUTHORS (scoped to a genre)
 -- ============================================================
 
-browseAuthorsInGenre :: String -> Cart -> Genre -> [Author] -> IO ()
-browseAuthorsInGenre name cart _ [] = do
+browseAuthorsInGenre :: String -> AppState -> Genre -> [Author] -> IO ()
+browseAuthorsInGenre name st _ [] = do
   putStrLn "\nNo authors found.\n"
-  mainMenu name cart
-browseAuthorsInGenre name cart g filtered = do
+  mainMenu name st
+browseAuthorsInGenre name st g filtered = do
+  let cart = stCart st
   putStrLn ""
   putStrLn $ render $
     withBorder BorderRound $
@@ -218,18 +452,18 @@ browseAuthorsInGenre name cart g filtered = do
     text "[0] Back  |  [H] Home  |  [L] Reading List  |  Enter author number:"
   choice <- prompt "> "
   case map toLower choice of
-    "0" -> mainMenu name cart
-    "h" -> mainMenu name cart
+    "0" -> mainMenu name st
+    "h" -> mainMenu name st
     "l" -> do
-      newCart <- viewCart name cart
-      browseAuthorsInGenre name newCart g filtered
+      newSt <- viewCart name st
+      browseAuthorsInGenre name newSt g filtered
     _ -> case reads choice of
       [(n, "")] | n >= 1 && n <= length filtered -> do
-        newCart <- authorDetailInGenre name cart g (filtered !! (n - 1))
-        browseAuthorsInGenre name newCart g filtered
+        newSt <- authorDetailInGenre name st g (filtered !! (n - 1))
+        browseAuthorsInGenre name newSt g filtered
       _ -> do
         putStrLn "Invalid choice."
-        browseAuthorsInGenre name cart g filtered
+        browseAuthorsInGenre name st g filtered
 
 authorInGenreRowL :: Cart -> Genre -> (Int, Author) -> L
 authorInGenreRowL cart g (i, a) =
@@ -245,8 +479,9 @@ authorInGenreRowL cart g (i, a) =
        , turquoise $ text (")" ++ cartStr)
        ]
 
-authorDetailInGenre :: String -> Cart -> Genre -> Author -> IO Cart
-authorDetailInGenre name cart g a = do
+authorDetailInGenre :: String -> AppState -> Genre -> Author -> IO AppState
+authorDetailInGenre name st g a = do
+  let cart = stCart st
   putStrLn ""
   putStrLn $ render $
     withBorder BorderDouble $
@@ -275,58 +510,72 @@ authorDetailInGenre name cart g a = do
     "a" -> do
       let newWorks = filter (\w -> not (inCart w cart)) ws
       putStrLn $ "Added " ++ show (length newWorks) ++ " works to your reading list."
-      return (foldl (flip addToCart) cart newWorks)
-    "0" -> return cart
-    "h" -> mainMenu name cart >> return cart
+      let newCart = foldl (flip addToCart) cart newWorks
+          newSt   = st { stCart = newCart }
+      persist name newSt
+      return newSt
+    "0" -> return st
+    "h" -> mainMenu name st >> return st
     "l" -> do
-      newCart <- viewCart name cart
-      authorDetailInGenre name newCart g a
+      newSt <- viewCart name st
+      authorDetailInGenre name newSt g a
     _ -> case reads choice of
       [(n, "")] | n >= 1 && n <= length ws -> do
-        newCart <- workDetail name cart (ws !! (n - 1)) a Nothing
-        authorDetailInGenre name newCart g a
+        newSt <- workDetail name st (ws !! (n - 1)) a Nothing
+        authorDetailInGenre name newSt g a
       _ -> do
         putStrLn "Invalid choice."
-        authorDetailInGenre name cart g a
+        authorDetailInGenre name st g a
 
 -- ============================================================
--- BROWSE WORKS
+-- BROWSE WORKS (with sort modes)
 -- ============================================================
 
-browseWorks :: String -> Cart -> String -> [Work] -> IO ()
-browseWorks name cart _ [] = do
-  putStrLn "\nNo works found.\n"
-  mainMenu name cart
-browseWorks name cart heading filtered = do
+browseWorks :: String -> AppState -> String -> [Work] -> IO ()
+browseWorks name st heading filtered =
+  browseWorksSorted name st heading WorkByTitle filtered
+
+browseWorksSorted :: String -> AppState -> String -> WorkSort -> [Work] -> IO ()
+browseWorksSorted name st _ _ [] = do
+  putStrLn $ render $
+    withBorder BorderRound $
+    amber $
+    box "No works found"
+      [ text "Try removing or changing some of your filters." ]
+  mainMenu name st
+browseWorksSorted name st heading sortMode filtered = do
+  let cart   = stCart st
+      sorted = sortWorks sortMode filtered
   putStrLn ""
   putStrLn $ render $
     withBorder BorderRound $
-    box (heading ++ " (" ++ show (length filtered) ++ " works)")
-      (map (workRowL cart) (zip [1..] filtered))
+    box (heading ++ " (" ++ show (length sorted) ++ ") -- sorted by " ++ workSortLabel sortMode)
+      (map (workRowL cart) (zip [1..] sorted))
   putStrLn ""
   putStrLn $ render $ amber $
-    text "[0] Back  |  [H] Home  |  [L] Reading List  |  Enter work number:"
+    text "[0] Back  |  [H] Home  |  [L] List  |  [S] Sort  |  Enter work #:"
   choice <- prompt "> "
   case map toLower choice of
-    "0" -> mainMenu name cart
-    "h" -> mainMenu name cart
+    "0" -> mainMenu name st
+    "h" -> mainMenu name st
+    "s" -> browseWorksSorted name st heading (nextWorkSort sortMode) filtered
     "l" -> do
-      newCart <- viewCart name cart
-      browseWorks name newCart heading filtered
+      newSt <- viewCart name st
+      browseWorksSorted name newSt heading sortMode filtered
     _ -> case reads choice of
-      [(n, "")] | n >= 1 && n <= length filtered -> do
-        let w = filtered !! (n - 1)
+      [(n, "")] | n >= 1 && n <= length sorted -> do
+        let w = sorted !! (n - 1)
         case authorOfWork w of
           Just a -> do
-            let sideTrip c = authorDetail name c a
-            newCart <- workDetail name cart w a (Just sideTrip)
-            browseWorks name newCart heading filtered
+            let sideTrip s' = authorDetail name s' a
+            newSt <- workDetail name st w a (Just sideTrip)
+            browseWorksSorted name newSt heading sortMode filtered
           Nothing -> do
             putStrLn "Author not found for this work."
-            browseWorks name cart heading filtered
+            browseWorksSorted name st heading sortMode filtered
       _ -> do
         putStrLn "Invalid choice."
-        browseWorks name cart heading filtered
+        browseWorksSorted name st heading sortMode filtered
 
 workRowL :: Cart -> (Int, Work) -> L
 workRowL cart (i, w) =
@@ -349,8 +598,9 @@ workRowL cart (i, w) =
 -- AUTHOR DETAIL
 -- ============================================================
 
-authorDetail :: String -> Cart -> Author -> IO Cart
-authorDetail name cart a = do
+authorDetail :: String -> AppState -> Author -> IO AppState
+authorDetail name st a = do
+  let cart = stCart st
   putStrLn ""
   putStrLn $ render $
     withBorder BorderDouble $
@@ -379,19 +629,22 @@ authorDetail name cart a = do
     "a" -> do
       let newWorks = filter (\w -> not (inCart w cart)) ws
       putStrLn $ "Added " ++ show (length newWorks) ++ " works to your reading list."
-      return (foldl (flip addToCart) cart newWorks)
-    "0" -> return cart
-    "h" -> mainMenu name cart >> return cart
+      let newCart = foldl (flip addToCart) cart newWorks
+          newSt   = st { stCart = newCart }
+      persist name newSt
+      return newSt
+    "0" -> return st
+    "h" -> mainMenu name st >> return st
     "l" -> do
-      newCart <- viewCart name cart
-      authorDetail name newCart a
+      newSt <- viewCart name st
+      authorDetail name newSt a
     _ -> case reads choice of
       [(n, "")] | n >= 1 && n <= length ws -> do
-        newCart <- workDetail name cart (ws !! (n - 1)) a Nothing
-        authorDetail name newCart a
+        newSt <- workDetail name st (ws !! (n - 1)) a Nothing
+        authorDetail name newSt a
       _ -> do
         putStrLn "Invalid choice."
-        authorDetail name cart a
+        authorDetail name st a
 
 workDetailLines :: Cart -> (Int, Work) -> [L]
 workDetailLines cart (i, w) =
@@ -414,10 +667,19 @@ workDetailLines cart (i, w) =
 -- WORK DETAIL
 -- ============================================================
 
-workDetail :: String -> Cart -> Work -> Author
-           -> Maybe (Cart -> IO Cart)
-           -> IO Cart
-workDetail name cart w a mSideTrip = do
+workDetail :: String -> AppState -> Work -> Author
+           -> Maybe (AppState -> IO AppState)
+           -> IO AppState
+workDetail name st w a mSideTrip = do
+  let stTouched = st { stRecent = touchRecent w (stRecent st) }
+  persist name stTouched
+  workDetailLoop name stTouched w a mSideTrip
+
+workDetailLoop :: String -> AppState -> Work -> Author
+               -> Maybe (AppState -> IO AppState)
+               -> IO AppState
+workDetailLoop name st w a mSideTrip = do
+  let cart = stCart st
   putStrLn ""
   putStrLn $ render $
     withBorder BorderDouble $
@@ -451,38 +713,42 @@ workDetail name cart w a mSideTrip = do
     withBorder BorderRound $
     sage $
     box "Actions" actionLines
-  let handleMore c = case mSideTrip of
-                       Just sideTrip -> sideTrip c
+  let handleMore s' = case mSideTrip of
+                       Just sideTrip -> sideTrip s'
                        Nothing       -> do
                          putStrLn "Not available here."
-                         workDetail name c w a mSideTrip
+                         workDetailLoop name s' w a mSideTrip
   choice <- prompt "> "
+  let saveAnd newCart = do
+        let newSt = st { stCart = newCart }
+        persist name newSt
+        return newSt
   case map toLower choice of
     "a" | not isIn -> do
       putStrLn $ "Added \"" ++ title w ++ "\" to reading list!"
-      return (addToCart w cart)
+      saveAnd (addToCart w cart)
     "r" | isIn -> do
       putStrLn $ "Removed \"" ++ title w ++ "\" from reading list."
-      return (removeFromCart w cart)
+      saveAnd (removeFromCart w cart)
     "k" | isIn && not isRead -> do
       putStrLn $ "Marked \"" ++ title w ++ "\" as read."
-      return (toggleReadCart w cart)
+      saveAnd (toggleReadCart w cart)
     "u" | isIn && isRead -> do
       putStrLn $ "Marked \"" ++ title w ++ "\" as unread."
-      return (toggleReadCart w cart)
+      saveAnd (toggleReadCart w cart)
     "l" -> do
-      newCart <- viewCart name cart
-      workDetail name newCart w a mSideTrip
-    "h" -> mainMenu name cart >> return cart
-    "m" -> handleMore cart
-    _   -> return cart
+      newSt <- viewCart name st
+      workDetailLoop name newSt w a mSideTrip
+    "h" -> mainMenu name st >> return st
+    "m" -> handleMore st
+    _   -> return st
 
 -- ============================================================
 -- FILTER MENUS
 -- ============================================================
 
-tribeMenu :: String -> Cart -> IO ()
-tribeMenu name cart = do
+tribeMenu :: String -> AppState -> IO ()
+tribeMenu name st = do
   let tribes = [ Navajo, Cherokee, Lakota, Apache, Choctaw, Osage
                , Pueblo, Sioux, Muscogee, Blackfeet, Coeur_dAlene
                , Chickasaw, Anishinaabe, Ojibwe, Mojave, Metis, Ojicree ]
@@ -501,23 +767,31 @@ tribeMenu name cart = do
     text "[0] Back  |  [H] Home  |  [L] Reading List  |  Enter tribe number:"
   choice <- prompt "> "
   case map toLower choice of
-    "0" -> mainMenu name cart
-    "h" -> mainMenu name cart
+    "0" -> mainMenu name st
+    "h" -> mainMenu name st
     "l" -> do
-      newCart <- viewCart name cart
-      tribeMenu name newCart
+      newSt <- viewCart name st
+      tribeMenu name newSt
     _ -> case reads choice of
       [(n, "")] | n >= 1 && n <= length tribes -> do
         let t = tribes !! (n - 1)
         let filtered = authorsByTribe t
-        putStrLn $ "\nAuthors from " ++ showTribe t ++ ":"
-        browseAuthors name cart filtered
+        if null filtered
+          then do
+            putStrLn $ render $
+              withBorder BorderRound $ amber $
+              box ("No authors from " ++ showTribe t)
+                [ text "This tribe has no authors in the database yet." ]
+            tribeMenu name st
+          else do
+            putStrLn $ "\nAuthors from " ++ showTribe t ++ ":"
+            browseAuthors name st AuthorByName filtered
       _ -> do
         putStrLn "Invalid choice."
-        tribeMenu name cart
+        tribeMenu name st
 
-genreMenu :: String -> Cart -> IO ()
-genreMenu name cart = do
+genreMenu :: String -> AppState -> IO ()
+genreMenu name st = do
   let genres = [Poetry, Memoir, LiteraryFiction, Nonfiction, ShortStory]
   putStrLn ""
   putStrLn $ render $
@@ -534,26 +808,26 @@ genreMenu name cart = do
     text "[0] Back  |  [H] Home  |  [L] Reading List  |  Enter genre number:"
   choice <- prompt "> "
   case map toLower choice of
-    "0" -> mainMenu name cart
-    "h" -> mainMenu name cart
+    "0" -> mainMenu name st
+    "h" -> mainMenu name st
     "l" -> do
-      newCart <- viewCart name cart
-      genreMenu name newCart
+      newSt <- viewCart name st
+      genreMenu name newSt
     _ -> case reads choice of
       [(n, "")] | n >= 1 && n <= length genres -> do
         let g = genres !! (n - 1)
-        let ws = sortByTitle (worksByGenre g)
-        browseWorks name cart (showGenre g) ws
+        let ws = worksByGenre g
+        browseWorks name st (showGenre g) ws
       _ -> do
         putStrLn "Invalid choice."
-        genreMenu name cart
+        genreMenu name st
 
-tribeAndGenreMenu :: String -> Cart -> IO ()
-tribeAndGenreMenu name cart =
-  multiFilterMenu name cart [] []
+tribeAndGenreMenu :: String -> AppState -> IO ()
+tribeAndGenreMenu name st =
+  multiFilterMenu name st [] []
 
-multiFilterMenu :: String -> Cart -> [Tribe] -> [Genre] -> IO ()
-multiFilterMenu name cart selTribes selGenres = do
+multiFilterMenu :: String -> AppState -> [Tribe] -> [Genre] -> IO ()
+multiFilterMenu name st selTribes selGenres = do
   putStrLn ""
   putStrLn $ render $
     withBorder BorderDouble $
@@ -589,33 +863,33 @@ multiFilterMenu name cart selTribes selGenres = do
   putStrLn ""
   choice <- prompt "> "
   case map toLower choice of
-    "0" -> mainMenu name cart
-    "h" -> mainMenu name cart
-    "c" -> multiFilterMenu name cart [] []
+    "0" -> mainMenu name st
+    "h" -> mainMenu name st
+    "c" -> multiFilterMenu name st [] []
     "l" -> do
-      newCart <- viewCart name cart
-      multiFilterMenu name newCart selTribes selGenres
+      newSt <- viewCart name st
+      multiFilterMenu name newSt selTribes selGenres
     "a" -> do
       let ws = worksByTribesAndGenres selTribes selGenres
       let heading = buildFilterHeading selTribes selGenres
-      browseWorks name cart heading ws
+      browseWorks name st heading ws
     ('t':rest) -> case reads rest of
       [(n, "")] | n >= 1 && n <= length filterTribes ->
         let t = filterTribes !! (n - 1)
             newSel = toggle t selTribes
-        in multiFilterMenu name cart newSel selGenres
+        in multiFilterMenu name st newSel selGenres
       _ -> invalid
     ('g':rest) -> case reads rest of
       [(n, "")] | n >= 1 && n <= length filterGenres ->
         let g = filterGenres !! (n - 1)
             newSel = toggle g selGenres
-        in multiFilterMenu name cart selTribes newSel
+        in multiFilterMenu name st selTribes newSel
       _ -> invalid
     _ -> invalid
   where
     invalid = do
       putStrLn "Invalid input. Use t<n>, g<n>, a, c, l, h, or 0."
-      multiFilterMenu name cart selTribes selGenres
+      multiFilterMenu name st selTribes selGenres
 
 toggleTextLine :: Eq a => (L -> L) -> (a -> String) -> [a] -> (Int, a) -> L
 toggleTextLine colorFn showFn selected (i, item) =
@@ -652,8 +926,8 @@ buildFilterHeading ts gs =
 -- SEARCH BY NAME
 -- ============================================================
 
-searchByName :: String -> Cart -> IO ()
-searchByName name cart = do
+searchByName :: String -> AppState -> IO ()
+searchByName name st = do
   putStrLn ""
   putStrLn $ render $
     withBorder BorderRound $
@@ -665,25 +939,28 @@ searchByName name cart = do
   putStrLn ""
   query <- prompt "> "
   case map toLower query of
-    "0" -> mainMenu name cart
-    "h" -> mainMenu name cart
+    "0" -> mainMenu name st
+    "h" -> mainMenu name st
     "l" -> do
-      newCart <- viewCart name cart
-      searchByName name newCart
+      newSt <- viewCart name st
+      searchByName name newSt
     _ -> do
       let results = authorByName query
       if null results
         then do
-          putStrLn $ "No authors found matching \"" ++ query ++ "\"."
-          mainMenu name cart
-        else browseAuthors name cart results
+          putStrLn $ render $
+            withBorder BorderRound $ amber $
+            box "No authors found"
+              [ text $ "Nothing matched \"" ++ query ++ "\". Try a partial name." ]
+          mainMenu name st
+        else browseAuthors name st AuthorByName results
 
 -- ============================================================
 -- ERA BROWSER
 -- ============================================================
 
-eraMenu :: String -> Cart -> IO ()
-eraMenu name cart = do
+eraMenu :: String -> AppState -> IO ()
+eraMenu name st = do
   putStrLn ""
   putStrLn $ render $
     withBorder BorderRound $
@@ -696,57 +973,60 @@ eraMenu name cart = do
   start <- prompt "Start year: "
   case map toLower start of
     "l" -> do
-      newCart <- viewCart name cart
-      eraMenu name newCart
-    "h" -> mainMenu name cart
-    "0" -> mainMenu name cart
+      newSt <- viewCart name st
+      eraMenu name newSt
+    "h" -> mainMenu name st
+    "0" -> mainMenu name st
     _ -> do
       end <- prompt "End year:   "
       case (reads start, reads end) of
         ([(s, "")], [(e, "")]) -> do
           let pairs = worksWithAuthors s e
-          let ws    = sortByTitle (map fst pairs)
+          let ws    = map fst pairs
           let heading = "Published " ++ show s ++ "-" ++ show e
-          browseWorks name cart heading ws
+          browseWorks name st heading ws
         _ -> do
           putStrLn "Invalid years. Please enter numbers."
-          eraMenu name cart
+          eraMenu name st
 
 -- ============================================================
 -- MOST PROLIFIC
 -- ============================================================
 
-showMostProlific :: String -> Cart -> IO ()
-showMostProlific name cart = do
+showMostProlific :: String -> AppState -> IO ()
+showMostProlific name st = do
   let top10 = take 10 mostProlificAuthors
   putStrLn ""
   putStrLn $ render $ center $
     orange $
     text "Top 10 Most Prolific Authors"
   putStrLn ""
-  browseAuthors name cart top10
+  browseAuthors name st AuthorByWorkCount top10
 
 -- ============================================================
 -- READING LIST / CART
 -- ============================================================
 
-viewCart :: String -> Cart -> IO Cart
-viewCart name cart = do
+viewCart :: String -> AppState -> IO AppState
+viewCart name st = do
+  let cart = stCart st
   putStrLn ""
   let total = cartSize cart
       readN = length (filter snd cart)
   putStrLn $ render $ row
     [ sage   $ statusCard "Reader" name
     , orange $ statusCard "Reading List" (show total ++ " works")
-    , withColor ColorBrightCyan $
-        statusCard "Read" (show readN ++ " / " ++ show total)
+    , turquoise $ statusCard "Read" (show readN ++ " / " ++ show total)
     ]
   putStrLn ""
   if null cart
     then putStrLn $ render $
            withBorder BorderRound $
            turquoise $
-           box "Reading List" [text "Your reading list is empty."]
+           box "Reading List"
+             [ text "Your reading list is empty."
+             , text "Browse and use [A] on any work to add it."
+             ]
     else putStrLn $ render $
            withBorder BorderRound $
            box (name ++ "'s Reading List")
@@ -759,20 +1039,30 @@ viewCart name cart = do
       [ text "<n>     -- view work n's details"
       , text "r<n>    -- toggle read/unread for work n"
       , text "d<n>    -- remove work n from list"
+      , text "[E] Export to text file"
       , text "[C] Clear list   [H] Home   [0] Back"
       ]
   putStrLn ""
   choice <- prompt "> "
-  handleCartChoice name cart choice
+  handleCartChoice name st choice
 
-handleCartChoice :: String -> Cart -> String -> IO Cart
-handleCartChoice name cart choice =
-  case map toLower choice of
-    "0" -> return cart
-    "h" -> mainMenu name cart >> return cart
+handleCartChoice :: String -> AppState -> String -> IO AppState
+handleCartChoice name st choice =
+  let cart = stCart st
+      saveAnd newCart = do
+        let newSt = st { stCart = newCart }
+        persist name newSt
+        return newSt
+  in case map toLower choice of
+    "0" -> return st
+    "h" -> mainMenu name st >> return st
     "c" -> do
       putStrLn "Reading list cleared."
-      return []
+      newSt <- saveAnd []
+      return newSt
+    "e" -> do
+      exportReadingList name st
+      viewCart name st
     ('r':rest) -> case reads rest of
       [(n, "")] | n >= 1 && n <= cartSize cart -> do
         let (w, _) = cart !! (n - 1)
@@ -780,31 +1070,33 @@ handleCartChoice name cart choice =
             newRead = isReadInCart w newCart
         putStrLn $ "Marked \"" ++ title w ++ "\" as " ++
                    (if newRead then "read." else "unread.")
-        viewCart name newCart
+        newSt <- saveAnd newCart
+        viewCart name newSt
       _ -> do
         putStrLn "Invalid input."
-        viewCart name cart
+        viewCart name st
     ('d':rest) -> case reads rest of
       [(n, "")] | n >= 1 && n <= cartSize cart -> do
         let (w, _) = cart !! (n - 1)
         putStrLn $ "Removed \"" ++ title w ++ "\" from reading list."
-        viewCart name (removeFromCart w cart)
+        newSt <- saveAnd (removeFromCart w cart)
+        viewCart name newSt
       _ -> do
         putStrLn "Invalid input."
-        viewCart name cart
+        viewCart name st
     _ -> case reads choice of
       [(n, "")] | n >= 1 && n <= cartSize cart -> do
         let (w, _) = cart !! (n - 1)
         case filter (\a -> authorId a == authorRef w) authors of
           (a:_) -> do
-            newCart <- workDetail name cart w a Nothing
-            viewCart name newCart
+            newSt <- workDetail name st w a Nothing
+            viewCart name newSt
           [] -> do
             putStrLn "Author not found."
-            viewCart name cart
+            viewCart name st
       _ -> do
         putStrLn "Invalid input."
-        viewCart name cart
+        viewCart name st
 
 cartRowL :: (Int, CartItem) -> L
 cartRowL (i, (w, isRead)) =
@@ -824,6 +1116,111 @@ cartRowL (i, (w, isRead)) =
        , amber $ text (show (yearPub w))
        , text "]"
        ]
+
+-- ============================================================
+-- EXPORT READING LIST TO TEXT FILE
+-- ============================================================
+
+exportReadingList :: String -> AppState -> IO ()
+exportReadingList name st = do
+  let cart = stCart st
+  if null cart
+    then putStrLn "Your reading list is empty -- nothing to export."
+    else do
+      home <- getHomeDirectory
+      let dir  = home </> ".nativelit"
+          path = dir </> (sanitizeName name ++ "-reading-list.txt")
+      createDirectoryIfMissing True dir
+      withFile path WriteMode $ \h -> do
+        hPutStrLn h ("Reading List for " ++ name)
+        hPutStrLn h (replicate 50 '=')
+        hPutStrLn h ""
+        let total = cartSize cart
+            readN = length (filter snd cart)
+        hPutStrLn h ("Total: " ++ show total ++ " works  |  Read: " ++
+                     show readN ++ " / " ++ show total)
+        hPutStrLn h ""
+        mapM_ (writeCartLine h) (zip [1..] cart)
+      putStrLn $ render $
+        withBorder BorderRound $ sage $
+        box "Exported"
+          [ text $ "Reading list saved to:"
+          , amber $ text path
+          ]
+  where
+    writeCartLine h (i, (w, isRead)) = do
+      let mark = if isRead then "[X]" else "[ ]"
+          author = case filter (\a -> authorId a == authorRef w) authors of
+            (a:_) -> authorName a
+            []    -> "Unknown"
+      hPutStrLn h $ mark ++ " " ++ show i ++ ". " ++ title w
+      hPutStrLn h $ "    by " ++ author ++
+                    "  [" ++ showGenre (genre w) ++ ", " ++
+                    show (yearPub w) ++ "]"
+      hPutStrLn h $ "    \"" ++ excerpt w ++ "\""
+      hPutStrLn h ""
+
+sanitizeName :: String -> String
+sanitizeName = filter (`elem` (['a'..'z'] ++ ['0'..'9'])) . map toLower
+
+-- ============================================================
+-- RECENTLY VIEWED
+-- ============================================================
+
+viewRecent :: String -> AppState -> IO AppState
+viewRecent name st = do
+  putStrLn ""
+  let recent = stRecent st
+  if null recent
+    then do
+      putStrLn $ render $
+        withBorder BorderRound $ turquoise $
+        box "Recently Viewed"
+          [ text "You haven't viewed any works yet."
+          , text "Browse around and they'll show up here."
+          ]
+      mainMenu name st >> return st
+    else do
+      putStrLn $ render $
+        withBorder BorderRound $ turquoise $
+        box ("Recently Viewed (" ++ show (length recent) ++ ")")
+          (map (recentRowL (stCart st)) (zip [1..] recent))
+      putStrLn ""
+      putStrLn $ render $ amber $
+        text "[H] Home  |  [0] Back  |  Enter number to revisit:"
+      choice <- prompt "> "
+      case map toLower choice of
+        "0" -> return st
+        "h" -> mainMenu name st >> return st
+        _ -> case reads choice of
+          [(n, "")] | n >= 1 && n <= length recent -> do
+            let w = recent !! (n - 1)
+            case filter (\a -> authorId a == authorRef w) authors of
+              (a:_) -> do
+                newSt <- workDetail name st w a Nothing
+                viewRecent name newSt
+              [] -> do
+                putStrLn "Author not found."
+                viewRecent name st
+          _ -> do
+            putStrLn "Invalid input."
+            viewRecent name st
+
+recentRowL :: Cart -> (Int, Work) -> L
+recentRowL cart (i, w) =
+  let isIn   = inCart w cart
+      isRead = isReadInCart w cart
+      authorPart = case filter (\a -> authorId a == authorRef w) authors of
+        (a:_) -> [text "  by ", withColor ColorBrightWhite $ text (authorName a)]
+        []    -> []
+      statusPart
+        | isRead    = [sage  $ text "  [\10003 read]"]
+        | isIn      = [amber $ text "  [in list]"]
+        | otherwise = []
+  in tightRow $
+       [ turquoise $ text (show i ++ ". " ++ title w)
+       , amber     $ text (" (" ++ show (yearPub w) ++ ")")
+       ] ++ authorPart ++ statusPart
 
 -- ============================================================
 -- SHOW HELPERS
