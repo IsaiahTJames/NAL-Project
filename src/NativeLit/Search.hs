@@ -140,3 +140,23 @@ mostProlificAuthors = sortByCount authors
 worksWithAuthors :: Int -> Int -> [(Work, Maybe Author)]
 worksWithAuthors start end =
   map (\w -> (w, authorOfWork w)) (worksByEra start end)
+
+  -- | Pre-defined collections of works for new readers
+data Collection = IntroToPoetry | AwardWinners | ModernHorror | HeritageMemoirs
+
+collectionTitle :: Collection -> String
+collectionTitle IntroToPoetry  = "Intro to Native Poetry"
+collectionTitle AwardWinners   = "Award-Winning Masterpieces"
+collectionTitle ModernHorror   = "Modern Indigenous Horror"
+collectionTitle HeritageMemoirs = "Heritage & Memoirs"
+
+-- | The list of work IDs for each collection
+collectionIds :: Collection -> [Int]
+collectionIds IntroToPoetry   = [2, 15, 20, 40, 52] -- Harjo, Tapahonso, Ortiz, Diaz, Long Soldier
+collectionIds AwardWinners    = [9, 10, 11, 48, 52] -- Erdrich, Momaday, Jones, Long Soldier
+collectionIds ModernHorror    = [46, 48, 49, 56]     -- Roanhorse, Jones, Staples
+collectionIds HeritageMemoirs = [1, 4, 12, 27, 44]    -- Harjo, Momaday, Hale, Hobson
+
+-- | Look up the actual Work objects for a collection
+getCollectionWorks :: Collection -> [Work]
+getCollectionWorks col = filter (\w -> workId w `elem` collectionIds col) works

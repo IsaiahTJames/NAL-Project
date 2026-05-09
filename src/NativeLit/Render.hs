@@ -260,6 +260,9 @@ mainMenu name st = do
       , tightRow [ text "[6] Browse by Era "
                  , amber $ text "(Year Range)" ]
       , text "[7] Top 10 Most Prolific Authors"
+      , tightRow [ text "[C] "
+                 , amber $ text "Curated Collections " 
+                 , text "(Starter Packs)" ] -- Added this line!
       , text "[8] View Reading List"
       , tightRow [ text "[V] Recently Viewed "
                  , amber $ text ("(" ++ show (length (stRecent st)) ++ ")") ]
@@ -279,6 +282,7 @@ mainMenu name st = do
     "5" -> searchByName name st
     "6" -> eraMenu name st
     "7" -> showMostProlific name st
+    "c" -> curatedMenu name st -- Added this line!
     "8" -> do
       newSt <- viewCart name st
       mainMenu name newSt
@@ -783,9 +787,8 @@ tribeMenu name st = do
               box ("No authors from " ++ showTribe t)
                 [ text "This tribe has no authors in the database yet." ]
             tribeMenu name st
-          else do
-            putStrLn $ "\nAuthors from " ++ showTribe t ++ ":"
-            browseAuthors name st AuthorByName filtered
+           else do
+              viewTribeInfo name st t
       _ -> do
         putStrLn "Invalid choice."
         tribeMenu name st
@@ -954,6 +957,24 @@ searchByName name st = do
               [ text $ "Nothing matched \"" ++ query ++ "\". Try a partial name." ]
           mainMenu name st
         else browseAuthors name st AuthorByName results
+
+-- ============================================================
+-- View TribeInfo
+-- ============================================================
+viewTribeInfo :: String -> AppState -> Tribe -> IO ()
+viewTribeInfo name st t = do
+  putStrLn ""
+  putStrLn $ render $
+    withBorder BorderDouble $
+    amber $
+    box (showTribe t ++ " Nation")
+      [ withColor ColorBrightWhite $ wrap 70 (tribeInfo t) ]
+  
+  let filtered = authorsByTribe t
+  putStrLn ""
+  putStrLn $ render $ turquoise $ text "Press Enter to browse authors from this nation..."
+  _ <- getLine
+  browseAuthors name st AuthorByName filtered
 
 -- ============================================================
 -- ERA BROWSER
@@ -1255,3 +1276,33 @@ showGenre Memoir          = "Memoir"
 showGenre LiteraryFiction = "Literary Fiction"
 showGenre Nonfiction      = "Nonfiction"
 showGenre ShortStory      = "Short Story"
+
+-- ============================================================
+-- Curated Menu
+-- ============================================================
+
+curatedMenu :: String -> AppState -> IO ()
+curatedMenu name st = do
+  let collections = [IntroToPoetry, AwardWinners, ModernHorror, HeritageMemoirs]
+  putStrLn ""
+  putStrLn $ render $
+    withBorder BorderRound $
+    turquoise $
+    box "Curated Collections"
+      (map (\(i, col) -> tightRow
+              [ turquoise $ text (show i ++ ". ")
+              , amber     $ text (collectionTitle col)
+              ])
+           (zip [1..] collections))
+  putStrLn ""
+  choice <- prompt "Pick a collection # (or [0] for Back): "
+  case choice of
+    "0" -> mainMenu name st
+    _   -> case reads choice of
+      [(n, "")] | n >= 1 && n <= length collections -> do
+        let col = collections !! (n - 1)
+        let ws = getCollectionWorks col
+        browseWorks name st (collectionTitle col) ws
+      _ -> do
+        putStrLn "Invalid choice."
+        curatedMenu name st

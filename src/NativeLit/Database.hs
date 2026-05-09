@@ -194,6 +194,24 @@ authors =
       , biography  = "Dennis E. Staples is an Anishinaabe author from the Leech Lake Reservation whose debut novel This Town Sleeps blends mystery and Indigenous spirituality."
       }
   ]
+  
+tribeInfo :: Tribe -> String
+tribeInfo Navajo       = "The Navajo (Diné) of the Southwest possess a rich literary tradition rooted in the 'Diné Bahane' creation stories and a profound spiritual connection to the sacred landscape of the Four Mountains."
+tribeInfo Cherokee     = "The Cherokee Nation, originally of the Southeast, has a long-standing written tradition dating back to the creation of the Cherokee Syllabary by Sequoyah in 1821."
+tribeInfo Lakota       = "The Lakota (Western Sioux) are known for a powerful oral tradition of 'ohunkakan' (myths) and 'woyakapi' (history), often reflecting themes of bravery and the sacredness of the Black Hills."
+tribeInfo Sioux        = "The Sioux (Oceti Sakowin) encompass a vast territory across the Great Plains. Their literature often explores resistance, political activism, and the preservation of cultural identity."
+tribeInfo Apache       = "Apache literature often centers on place-based storytelling and 'wisdom sits in places,' emphasizing the moral lessons embedded in the geography of the Southwest."
+tribeInfo Choctaw      = "The Choctaw Nation of Oklahoma (originally from the Southeast) has a literary history that weaves together ancestral mound-builder heritage with contemporary stories of resilience."
+tribeInfo Pueblo       = "Pueblo literature (including Acoma, Laguna, and Zuni) is deeply communal, drawing on thousands of years of continuous habitation and complex agricultural and ceremonial cycles."
+tribeInfo Muscogee     = "The Muscogee (Creek) Nation's literature is characterized by a blend of traditional tribal histories and sharp, contemporary social commentary, often using the 'Stomp Dance' as a cultural anchor."
+tribeInfo Blackfeet    = "The Blackfeet (Siksikaitsitapi) of Montana and Alberta produce works that focus on the relationship between the people, the buffalo, and the rugged landscape of the Rocky Mountains."
+tribeInfo Coeur_dAlene = "The Coeur d'Alene (Schitsu'umsh) people of Idaho have a storytelling tradition that emphasizes the connection to the lakes and the survival of the 'Heart of the People.'"
+tribeInfo Anishinaabe  = "Anishinaabe literature (including Ojibwe) often features the 'Manidog' (spirits) and the trickster 'Nanabozho,' focusing on the philosophy of 'Mino-bimaadiziwin' (the good life)."
+tribeInfo Ojibwe       = "The Ojibwe (Chippewa) are one of the largest Indigenous groups in North America, with a vast body of literature ranging from traditional birchbark scrolls to Pulitzer-winning modern novels."
+tribeInfo Mojave       = "The Mojave people of the Colorado River valley have a unique literary voice often centered on the river as the lifeblood of the community and the preservation of the Mojave language."
+tribeInfo Metis        = "Métis literature reflects a distinct culture born of Cree, Ojibwe, and French fur trader ancestry, often exploring themes of 'road allowance' history and the 'Michif' language."
+tribeInfo Ojicree      = "Oji-Cree (Anishinini) literature represents the northern boreal forest cultures, blending the linguistic and cultural traditions of both the Ojibwe and the Cree nations."
+tribeInfo _            = "A resilient Indigenous nation with an ancient oral tradition and a deep, enduring connection to their ancestral lands and cultural heritage."
 
 works :: [Work]
 works =
@@ -254,3 +272,4 @@ works =
   , Work { workId = 55, title = "Full Metal Indigiqueer", authorRef = 26, genre = Poetry, yearPub = 2017, excerpt = "I sing myself into existence in a language that was almost taken from me." }
   , Work { workId = 56, title = "This Town Sleeps", authorRef = 27, genre = LiteraryFiction, yearPub = 2020, excerpt = "The reservation holds its secrets the way the earth holds its dead." }
   ]
+
