@@ -17,7 +17,8 @@ library
     build-depends:
         base ^>=4.18.3.0,
         containers,
-        text
+        text,
+        layoutz
     hs-source-dirs:   src
     default-language: Haskell2010
 
