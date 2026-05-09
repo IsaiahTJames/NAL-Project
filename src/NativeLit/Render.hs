@@ -241,7 +241,6 @@ getUsername = do
 mainMenu :: String -> AppState -> IO ()
 mainMenu name st = do
   let cart = stCart st
-  -- Pick the featured author for this specific view
   featured <- randomAuthor 
   
   putStrLn ""
@@ -250,34 +249,42 @@ mainMenu name st = do
     , orange $ statusCard "Reading List" (show (cartSize cart) ++ " works")
     ]
   
-  -- The Spotlight Section
   putStrLn $ render $
     withBorder BorderDouble $
     amber $
     box "Featured Author Spotlight"
       [ tightRow [ amber $ text (authorName featured), text " (", turquoise $ text (showTribe (tribe featured)), text ")" ]
       , withColor ColorBrightWhite $ wrap 70 (biography featured)
+      , text ""
+      -- 🌟 Updated to Amber/Yellow text
+      , tightRow [ turquoise $ text "[S] ", amber $ text "View this Author's Profile & Works" ] 
       ]
 
   putStrLn ""
-  putStrLn $ render $
-    withBorder BorderRound $
-    turquoise $
-    box "Main Menu"
-      [ text "[1] Browse All Authors"
-      , text "[2] Filter by Tribe"
-      , text "[3] Filter by Genre"
-      , tightRow [ text "[4] Filter by Tribes & Genres ", amber $ text "(multi-select)" ]
-      , text "[5] Search Author by Name"
-      , tightRow [ text "[6] Browse by Era ", amber $ text "(Year Range)" ]
-      , text "[7] Top 10 Most Prolific Authors"
-      , tightRow [ text "[C] ", amber $ text "Curated Collections ", text "(Starter Packs)" ]
-      , text "[8] View Reading List"
-      , tightRow [ text "[V] Recently Viewed ", amber $ text ("(" ++ show (length (stRecent st)) ++ ")") ]
-      , tightRow [ text "[R] ", amber $ text "Surprise me ", text "(random pick)" ]
-      , text "[T] Library Stats"
-      , text "[9] Quit"
-      ]
+  putStrLn $ render $ row
+    [ withBorder BorderRound $
+      turquoise $
+      box "Library Navigation"
+        [ text "[1] Browse All Authors"
+        , text "[2] Filter by Tribe"
+        , text "[3] Filter by Genre"
+        , text "[4] Filter by Tribes & Genres"
+        , text "[5] Search Author by Name"
+        , text "[6] Browse by Era (Year Range)"
+        , text "[7] Top 10 Most Prolific Authors"
+        , text "[8] View Reading List"
+        , text "[9] Quit"
+        ]
+    , withBorder BorderRound $
+      orange $
+      box "Special Features"
+        [ tightRow [ text "[C] ", amber $ text "Curated Collections" ]
+        , tightRow [ text "[V] ", amber $ text "Recently Viewed ", text ("(" ++ show (length (stRecent st)) ++ ")") ]
+        , tightRow [ text "[R] ", amber $ text "Surprise me ", text "(random)" ]
+        , tightRow [ text "[T] ", amber $ text "Library Stats" ]
+        ]
+    ]
+  
   putStrLn ""
   choice <- prompt "> "
   case map toLower choice of
@@ -288,9 +295,16 @@ mainMenu name st = do
     "5" -> searchByName name st
     "6" -> eraMenu name st
     "7" -> showMostProlific name st
-    "c" -> curatedMenu name st
     "8" -> do
       newSt <- viewCart name st
+      mainMenu name newSt
+    "9" -> do
+      persist name st
+      putStrLn "\nGoodbye! Your reading list has been saved.\n"
+    "c" -> curatedMenu name st
+    -- 🌟 Now jumps STRAIGHT to the profile and captures the updated state
+    "s" -> do
+      newSt <- authorDetail name st featured
       mainMenu name newSt
     "v" -> do
       newSt <- viewRecent name st
@@ -301,9 +315,6 @@ mainMenu name st = do
     "t" -> do
       showStats name st
       mainMenu name st
-    "9" -> do
-      persist name st
-      putStrLn "\nGoodbye! Your reading list has been saved.\n"
     _   -> do
       putStrLn "Invalid choice, try again."
       mainMenu name st
