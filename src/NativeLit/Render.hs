@@ -241,11 +241,24 @@ getUsername = do
 mainMenu :: String -> AppState -> IO ()
 mainMenu name st = do
   let cart = stCart st
+  -- Pick the featured author for this specific view
+  featured <- randomAuthor 
+  
   putStrLn ""
   putStrLn $ render $ row
     [ sage   $ statusCard "Reader" name
     , orange $ statusCard "Reading List" (show (cartSize cart) ++ " works")
     ]
+  
+  -- The Spotlight Section
+  putStrLn $ render $
+    withBorder BorderDouble $
+    amber $
+    box "Featured Author Spotlight"
+      [ tightRow [ amber $ text (authorName featured), text " (", turquoise $ text (showTribe (tribe featured)), text ")" ]
+      , withColor ColorBrightWhite $ wrap 70 (biography featured)
+      ]
+
   putStrLn ""
   putStrLn $ render $
     withBorder BorderRound $
@@ -254,21 +267,14 @@ mainMenu name st = do
       [ text "[1] Browse All Authors"
       , text "[2] Filter by Tribe"
       , text "[3] Filter by Genre"
-      , tightRow [ text "[4] Filter by Tribes & Genres "
-                 , amber $ text "(multi-select)" ]
+      , tightRow [ text "[4] Filter by Tribes & Genres ", amber $ text "(multi-select)" ]
       , text "[5] Search Author by Name"
-      , tightRow [ text "[6] Browse by Era "
-                 , amber $ text "(Year Range)" ]
+      , tightRow [ text "[6] Browse by Era ", amber $ text "(Year Range)" ]
       , text "[7] Top 10 Most Prolific Authors"
-      , tightRow [ text "[C] "
-                 , amber $ text "Curated Collections " 
-                 , text "(Starter Packs)" ] -- Added this line!
+      , tightRow [ text "[C] ", amber $ text "Curated Collections ", text "(Starter Packs)" ]
       , text "[8] View Reading List"
-      , tightRow [ text "[V] Recently Viewed "
-                 , amber $ text ("(" ++ show (length (stRecent st)) ++ ")") ]
-      , tightRow [ text "[R] "
-                 , amber $ text "Surprise me " 
-                 , text "(random pick)" ]
+      , tightRow [ text "[V] Recently Viewed ", amber $ text ("(" ++ show (length (stRecent st)) ++ ")") ]
+      , tightRow [ text "[R] ", amber $ text "Surprise me ", text "(random pick)" ]
       , text "[T] Library Stats"
       , text "[9] Quit"
       ]
@@ -282,7 +288,7 @@ mainMenu name st = do
     "5" -> searchByName name st
     "6" -> eraMenu name st
     "7" -> showMostProlific name st
-    "c" -> curatedMenu name st -- Added this line!
+    "c" -> curatedMenu name st
     "8" -> do
       newSt <- viewCart name st
       mainMenu name newSt

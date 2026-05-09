@@ -2,6 +2,7 @@ module NativeLit.Search where
 
 import NativeLit.Types
 import NativeLit.Database
+import System.Random (randomRIO)
 
 -- | Find all works by a specific author ID
 worksByAuthor :: Int -> [Work]
@@ -160,3 +161,10 @@ collectionIds HeritageMemoirs = [1, 4, 12, 27, 44]    -- Harjo, Momaday, Hale, H
 -- | Look up the actual Work objects for a collection
 getCollectionWorks :: Collection -> [Work]
 getCollectionWorks col = filter (\w -> workId w `elem` collectionIds col) works
+
+-- | Pick a truly random author from the database
+randomAuthor :: IO Author
+randomAuthor = do
+  -- We explicitly tell it we want an Int for the index
+  idx <- randomRIO (0, length authors - 1) :: IO Int
+  return (authors !! idx)
