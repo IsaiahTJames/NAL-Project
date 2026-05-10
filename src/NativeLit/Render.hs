@@ -265,15 +265,17 @@ mainMenu name st = do
     [ withBorder BorderRound $
       turquoise $
       box "Library Navigation"
-        [ text "[1] Browse All Authors"
-        , text "[2] Filter by Tribe"
-        , text "[3] Filter by Genre"
-        , text "[4] Filter by Tribes & Genres"
-        , text "[5] Search Author by Name"
-        , text "[6] Browse by Era (Year Range)"
-        , text "[7] Top 10 Most Prolific Authors"
-        , text "[8] View Reading List"
-        , text "[9] Quit"
+        [ tightRow [ turquoise $ text "[1] ", amber $ text "Browse All Authors" ]
+        , tightRow [ turquoise $ text "[2] ", amber $ text "Filter by Tribe" ]
+        , tightRow [ turquoise $ text "[3] ", amber $ text "Filter by Genre" ]
+        , tightRow [ turquoise $ text "[4] ", amber $ text "Filter by Tribes & Genres" ]
+        , tightRow [ turquoise $ text "[5] ", amber $ text "Search Author by Name" ]
+        , tightRow [ turquoise $ text "[6] "
+                   , amber $ text "Browse by Era "
+                   , withColor ColorBrightWhite $ text "(Year Range)" ]
+        , tightRow [ turquoise $ text "[7] ", amber $ text "Top 10 Most Prolific Authors" ]
+        , tightRow [ turquoise $ text "[8] ", amber $ text "View Reading List" ]
+        , tightRow [ turquoise $ text "[9] ", amber $ text "Quit" ]
         ]
     , withBorder BorderRound $
       orange $
@@ -567,11 +569,11 @@ browseWorksSorted name st _ _ [] = do
 browseWorksSorted name st heading sortMode filtered = do
   let cart   = stCart st
       sorted = sortWorks sortMode filtered
+      headingText = heading ++ " (" ++ show (length sorted) ++ ") -- sorted by " ++ workSortLabel sortMode
   putStrLn ""
-  putStrLn $ render $
-    withBorder BorderRound $
-    box (heading ++ " (" ++ show (length sorted) ++ ") -- sorted by " ++ workSortLabel sortMode)
-      (map (workRowL cart) (zip [1..] sorted))
+  putStrLn $ render $ turquoise $ text ("--- " ++ headingText ++ " ---")
+  putStrLn ""
+  mapM_ (\iw -> putStrLn (render (workRowL cart iw))) (zip [1..] sorted)
   putStrLn ""
   putStrLn $ render $ amber $
     text "[0] Back  |  [H] Home  |  [L] List  |  [S] Sort  |  Enter work #:"
