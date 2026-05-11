@@ -193,8 +193,134 @@ authors =
       , birthYear  = 1988
       , biography  = "Dennis E. Staples is an Anishinaabe author from the Leech Lake Reservation whose debut novel This Town Sleeps blends mystery and Indigenous spirituality."
       }
+  , Author
+      { authorId   = 28
+      , authorName = "Darcie Little Badger"
+      , tribe      = Apache
+      , birthYear  = 1987
+      , biography  = "Darcie Little Badger is a Lipan Apache author and oceanographer whose young adult novels blend Apache folklore with science fiction and mystery. Her debut Elatsoe won the Locus Award for Best First Novel."
+      }
+  , Author
+      { authorId   = 29
+      , authorName = "Veronica E. Velarde Tiller"
+      , tribe      = Apache
+      , birthYear  = 1947
+      , biography  = "Veronica E. Velarde Tiller is a Jicarilla Apache historian and publisher whose reference works on Indian tribes and communities have become essential resources for scholars and tribal nations."
+      }
+  , Author
+      { authorId   = 30
+      , authorName = "Margo Tamez"
+      , tribe      = Apache
+      , birthYear  = 1962
+      , biography  = "Margo Tamez is a Lipan Apache poet and scholar whose work confronts borderlands, colonization, and Indigenous sovereignty along the Texas-Mexico frontier."
+      }
+  , Author
+      { authorId   = 31
+      , authorName = "John Joseph Mathews"
+      , tribe      = Osage
+      , birthYear  = 1894
+      , biography  = "John Joseph Mathews was an Osage writer, historian, and tribal council member whose books helped establish Native American literature as a serious literary tradition during the 20th century."
+      }
+  , Author
+      { authorId   = 32
+      , authorName = "Louis F. Burns"
+      , tribe      = Osage
+      , birthYear  = 1920
+      , biography  = "Louis F. Burns was an Osage historian who devoted his life to documenting the genealogy, customs, and history of the Osage people through meticulously researched volumes."
+      }
+  , Author
+      { authorId   = 33
+      , authorName = "Charles H. Red Corn"
+      , tribe      = Osage
+      , birthYear  = 1936
+      , biography  = "Charles H. Red Corn was an Osage novelist whose work brought the experiences of the Osage Nation's oil-boom era to literary fiction with quiet authority."
+      }
+  , Author
+      { authorId   = 34
+      , authorName = "Chelsea T. Hicks"
+      , tribe      = Osage
+      , birthYear  = 1990
+      , biography  = "Chelsea T. Hicks is an Osage author whose debut story collection A Calm and Normal Heart explores contemporary Osage identity, language reclamation, and intergenerational memory."
+      }
+  , Author
+      { authorId   = 35
+      , authorName = "Elise Paschen"
+      , tribe      = Osage
+      , birthYear  = 1959
+      , biography  = "Elise Paschen is an Osage poet and former executive director of the Poetry Society of America. Her collections weave personal history with Osage heritage and classical poetic forms."
+      }
+  , Author
+      { authorId   = 36
+      , authorName = "Carter Revard"
+      , tribe      = Osage
+      , birthYear  = 1931
+      , biography  = "Carter Revard was an Osage poet and medieval literature scholar whose poetry blended Indigenous oral tradition with formal Western verse, creating a bridge between worlds."
+      }
+  , Author
+      { authorId   = 37
+      , authorName = "Taiaiake Alfred"
+      , tribe      = Mohawk
+      , birthYear  = 1964
+      , biography  = "Gerald Taiaiake Alfred is a Kahnawake Mohawk scholar and activist whose writings on Indigenous resurgence, sovereignty, and decolonization have shaped contemporary Native political thought."
+      }
+  , Author
+      { authorId   = 38
+      , authorName = "Beth Brant"
+      , tribe      = Mohawk
+      , birthYear  = 1941
+      , biography  = "Beth Brant was a Mohawk writer from the Bay of Quinte Mohawk community whose pioneering work centered Indigenous women, Two-Spirit identity, and the power of storytelling as witness."
+      }
+  , Author
+      { authorId   = 39
+      , authorName = "Maurice Kenny"
+      , tribe      = Mohawk
+      , birthYear  = 1929
+      , biography  = "Maurice Kenny was a Mohawk poet whose decades-long career produced essential works of Native American poetry, often returning to themes of land, ancestry, and queer Indigenous experience."
+      }
+  , Author
+      { authorId   = 40
+      , authorName = "Tomson Highway"
+      , tribe      = Cree
+      , birthYear  = 1951
+      , biography  = "Tomson Highway is a Cree playwright, novelist, and musician from northern Manitoba whose works have helped define modern Indigenous theater in Canada."
+      }
+  , Author
+      { authorId   = 41
+      , authorName = "Billy-Ray Belcourt"
+      , tribe      = Cree
+      , birthYear  = 1994
+      , biography  = "Billy-Ray Belcourt is a Driftpile Cree Nation poet and scholar whose work explores queer Indigenous love, grief, and resistance. He was the youngest-ever winner of the Griffin Poetry Prize."
+      }
+  , Author
+      { authorId   = 42
+      , authorName = "Jessica Johns"
+      , tribe      = Cree
+      , birthYear  = 1989
+      , biography  = "Jessica Johns is a nehiyaw Cree writer and editor whose debut novel Bad Cree blends horror, dreams, and intergenerational memory into a striking exploration of grief and survival."
+      }
+  , Author
+      { authorId   = 43
+      , authorName = "Louise Bernice Halfe"
+      , tribe      = Cree
+      , birthYear  = 1953
+      , biography  = "Louise Bernice Halfe, also known as Sky Dancer, is a Cree poet and former Canadian Parliamentary Poet Laureate whose work integrates Cree language, residential school memory, and ceremony."
+      }
+  , Author
+      { authorId   = 44
+      , authorName = "David A. Robertson"
+      , tribe      = Cree
+      , birthYear  = 1977
+      , biography  = "David A. Robertson is a Norway House Cree Nation author who writes acclaimed books for young readers and adults that explore identity, reconciliation, and Indigenous worldviews."
+      }
+  , Author
+      { authorId   = 45
+      , authorName = "Michelle Good"
+      , tribe      = Cree
+      , birthYear  = 1956
+      , biography  = "Michelle Good is a Cree author and lawyer from the Red Pheasant Cree Nation whose debut novel Five Little Indians follows survivors of Canadian residential schools into adulthood."
+      }
   ]
-  
+
 tribeInfo :: Tribe -> String
 tribeInfo Navajo       = "The Navajo (Diné) of the Southwest possess a rich literary tradition rooted in the 'Diné Bahane' creation stories and a profound spiritual connection to the sacred landscape of the Four Mountains."
 tribeInfo Cherokee     = "The Cherokee Nation, originally of the Southeast, has a long-standing written tradition dating back to the creation of the Cherokee Syllabary by Sequoyah in 1821."
@@ -211,6 +337,9 @@ tribeInfo Ojibwe       = "The Ojibwe (Chippewa) are one of the largest Indigenou
 tribeInfo Mojave       = "The Mojave people of the Colorado River valley have a unique literary voice often centered on the river as the lifeblood of the community and the preservation of the Mojave language."
 tribeInfo Metis        = "Métis literature reflects a distinct culture born of Cree, Ojibwe, and French fur trader ancestry, often exploring themes of 'road allowance' history and the 'Michif' language."
 tribeInfo Ojicree      = "Oji-Cree (Anishinini) literature represents the northern boreal forest cultures, blending the linguistic and cultural traditions of both the Ojibwe and the Cree nations."
+tribeInfo Osage        = "Osage literature reflects a nation transformed by the early 20th century oil boom and the violence that followed, producing some of the most important Indigenous American writing of the modern era."
+tribeInfo Mohawk       = "Mohawk (Kanien'keha:ka) literature, rooted in the Haudenosaunee Confederacy, blends political clarity, ceremonial knowledge, and a long tradition of women's leadership and storytelling."
+tribeInfo Cree         = "Cree (Nehiyawak) literature is among the most vibrant in contemporary Indigenous letters, drawing on the vast boreal forests and prairies and on a deep tradition of language preservation and storytelling."
 tribeInfo _            = "A resilient Indigenous nation with an ancient oral tradition and a deep, enduring connection to their ancestral lands and cultural heritage."
 
 works :: [Work]
@@ -271,5 +400,50 @@ works =
   , Work { workId = 54, title = "Jonny Appleseed", authorRef = 26, genre = LiteraryFiction, yearPub = 2018, excerpt = "To be Two-Spirit and Oji-Cree is to carry multiple worlds inside one body." }
   , Work { workId = 55, title = "Full Metal Indigiqueer", authorRef = 26, genre = Poetry, yearPub = 2017, excerpt = "I sing myself into existence in a language that was almost taken from me." }
   , Work { workId = 56, title = "This Town Sleeps", authorRef = 27, genre = LiteraryFiction, yearPub = 2020, excerpt = "The reservation holds its secrets the way the earth holds its dead." }
+  , Work { workId = 57, title = "Elatsoe", authorRef = 28, genre = LiteraryFiction, yearPub = 2020, excerpt = "The dead have lessons for the living, if we know how to listen." }
+  , Work { workId = 58, title = "A Snake Falls to Earth", authorRef = 28, genre = LiteraryFiction, yearPub = 2021, excerpt = "Two worlds press against each other, and only the storytellers can hear what crosses between." }
+  , Work { workId = 59, title = "Sheine Lende", authorRef = 28, genre = LiteraryFiction, yearPub = 2024, excerpt = "Before Elatsoe walked these paths, her grandmother ran them with the same kind of hunger." }
+  , Work { workId = 60, title = "Tiller's Guide to Indian Country", authorRef = 29, genre = Nonfiction, yearPub = 1996, excerpt = "Every tribal nation deserves to be seen, named, and understood on its own terms." }
+  , Work { workId = 61, title = "The Jicarilla Apache Tribe", authorRef = 29, genre = Nonfiction, yearPub = 2000, excerpt = "The history of the Jicarilla is a history of survival and self-determination." }
+  , Work { workId = 62, title = "Culture and Customs of the Apache Indians", authorRef = 29, genre = Nonfiction, yearPub = 2011, excerpt = "To know the Apache is to know the mountains, the deserts, and the resilient heart of the people." }
+  , Work { workId = 63, title = "Naked Wanting", authorRef = 30, genre = Poetry, yearPub = 2003, excerpt = "On the borderlands we learn what hunger means before we learn what home means." }
+  , Work { workId = 64, title = "Raven Eye", authorRef = 30, genre = Poetry, yearPub = 2007, excerpt = "The river remembers the names the maps have tried to erase." }
+  , Work { workId = 65, title = "Sundown", authorRef = 31, genre = LiteraryFiction, yearPub = 1934, excerpt = "Chal stood between two worlds, and neither one would have him whole." }
+  , Work { workId = 66, title = "Wah'Kon-Tah: The Osage and the White Man's Road", authorRef = 31, genre = Nonfiction, yearPub = 1932, excerpt = "The Great Mystery watched as the people walked into a future they had not chosen." }
+  , Work { workId = 67, title = "The Osages: Children of the Middle Waters", authorRef = 31, genre = Nonfiction, yearPub = 1961, excerpt = "From the middle waters we came, and the rivers still carry our names." }
+  , Work { workId = 68, title = "Talking to the Moon", authorRef = 31, genre = Memoir, yearPub = 1945, excerpt = "Out here on the blackjack ridges I learned to listen to what most men cannot hear." }
+  , Work { workId = 69, title = "A History of the Osage People", authorRef = 32, genre = Nonfiction, yearPub = 1989, excerpt = "Every family carries a thread of the larger story. Together those threads are a nation." }
+  , Work { workId = 70, title = "Osage Indian Customs and Myths", authorRef = 32, genre = Nonfiction, yearPub = 1984, excerpt = "The old stories are not entertainment. They are the architecture of the world." }
+  , Work { workId = 71, title = "A Pipe for February", authorRef = 33, genre = LiteraryFiction, yearPub = 2002, excerpt = "When the oil came, the Osage learned that wealth could be a kind of violence too." }
+  , Work { workId = 72, title = "A Calm and Normal Heart", authorRef = 34, genre = ShortStory, yearPub = 2022, excerpt = "She was learning her language one word at a time, and each word was a small homecoming." }
+  , Work { workId = 73, title = "Bestiary", authorRef = 35, genre = Poetry, yearPub = 2009, excerpt = "Each creature carries a memory the human world has forgotten how to read." }
+  , Work { workId = 74, title = "The Nightlife", authorRef = 35, genre = Poetry, yearPub = 2017, excerpt = "In the small hours the city becomes another country, and we become other selves." }
+  , Work { workId = 75, title = "Blood Wolf Moon", authorRef = 35, genre = Poetry, yearPub = 2025, excerpt = "Under the wolf moon, the women of my family rise into the cold to remember." }
+  , Work { workId = 76, title = "An Eagle Nation", authorRef = 36, genre = Poetry, yearPub = 1993, excerpt = "We are a nation of relatives. The eagle, the cousin, the unborn, the stone." }
+  , Work { workId = 77, title = "Winning the Dust Bowl", authorRef = 36, genre = Poetry, yearPub = 2001, excerpt = "Dust returns. Land returns. Memory returns. We belong to all of it." }
+  , Work { workId = 78, title = "Wasase: Indigenous Pathways of Action and Freedom", authorRef = 37, genre = Nonfiction, yearPub = 2005, excerpt = "Resurgence is not nostalgia. It is the disciplined refusal of the colonial present." }
+  , Work { workId = 79, title = "Heeding the Voices of Our Ancestors", authorRef = 37, genre = Nonfiction, yearPub = 1995, excerpt = "Sovereignty begins inside the people, in the way they speak to each other and to the land." }
+  , Work { workId = 80, title = "Mohawk Trail", authorRef = 38, genre = ShortStory, yearPub = 1985, excerpt = "We are women who refuse to be unseen, refuse to be unheard, refuse to be unwoven." }
+  , Work { workId = 81, title = "Food & Spirits", authorRef = 38, genre = ShortStory, yearPub = 1991, excerpt = "What we cook, what we feed each other, that is the truest history of a people." }
+  , Work { workId = 82, title = "Writing as Witness", authorRef = 38, genre = Nonfiction, yearPub = 1994, excerpt = "To write is to refuse forgetting. That is the writer's first ceremony." }
+  , Work { workId = 83, title = "Mama Poems", authorRef = 39, genre = Poetry, yearPub = 1984, excerpt = "My mother's hands held the world together with thread the priests could not see." }
+  , Work { workId = 84, title = "Greyhounding This America", authorRef = 39, genre = Poetry, yearPub = 1988, excerpt = "Through the bus window the country unfolds itself like a wound we keep choosing to dress." }
+  , Work { workId = 85, title = "Tekonwatonti / Molly Brant", authorRef = 39, genre = Poetry, yearPub = 1992, excerpt = "She walked between empires and made herself a nation of one." }
+  , Work { workId = 86, title = "Kiss of the Fur Queen", authorRef = 40, genre = LiteraryFiction, yearPub = 1998, excerpt = "Two brothers, two pianos, and the howling wind of the residential school behind them." }
+  , Work { workId = 87, title = "Caribou Song", authorRef = 40, genre = LiteraryFiction, yearPub = 2001, excerpt = "When the caribou come, the world becomes a thunder of belonging." }
+  , Work { workId = 88, title = "The Rez Sisters", authorRef = 40, genre = LiteraryFiction, yearPub = 1986, excerpt = "Seven women, one bingo, and all the laughter and grief a reservation can hold." }
+  , Work { workId = 89, title = "This Wound Is a World", authorRef = 41, genre = Poetry, yearPub = 2017, excerpt = "To be NDN and queer is to be a question the world tries to close and cannot." }
+  , Work { workId = 90, title = "A History of My Brief Body", authorRef = 41, genre = Memoir, yearPub = 2020, excerpt = "The body is a country I am still learning to inhabit without flinching." }
+  , Work { workId = 91, title = "A Minor Chorus", authorRef = 41, genre = LiteraryFiction, yearPub = 2022, excerpt = "Sometimes the smallest voice in the room is the one keeping the song alive." }
+  , Work { workId = 92, title = "Bad Cree", authorRef = 42, genre = LiteraryFiction, yearPub = 2023, excerpt = "The crows in her dreams were carrying messages, and one of them was her sister." }
+  , Work { workId = 93, title = "Bear Bones & Feathers", authorRef = 43, genre = Poetry, yearPub = 1994, excerpt = "Even the bones know how to sing the old songs back into the wind." }
+  , Work { workId = 94, title = "Blue Marrow", authorRef = 43, genre = Poetry, yearPub = 1998, excerpt = "My grandmothers stand behind me, and behind them stand the mothers of all our mothers." }
+  , Work { workId = 95, title = "Burning in This Midnight Dream", authorRef = 43, genre = Poetry, yearPub = 2016, excerpt = "The school is gone but the dream still wakes me, still kneels me to the floor." }
+  , Work { workId = 96, title = "The Barren Grounds", authorRef = 44, genre = LiteraryFiction, yearPub = 2020, excerpt = "Two foster kids slip through a hidden door and find a land they were always meant to defend." }
+  , Work { workId = 97, title = "When We Were Alone", authorRef = 44, genre = LiteraryFiction, yearPub = 2016, excerpt = "Why is your hair long, kohkom? Because once they tried to cut all of us short." }
+  , Work { workId = 98, title = "Black Water", authorRef = 44, genre = Memoir, yearPub = 2020, excerpt = "My father walked back to his trapline and brought a piece of his old self home with him." }
+  , Work { workId = 99, title = "52 Ways to Reconcile", authorRef = 44, genre = Nonfiction, yearPub = 2022, excerpt = "Reconciliation is not a destination. It is a daily practice of attention and choice." }
+  , Work { workId = 100, title = "Five Little Indians", authorRef = 45, genre = LiteraryFiction, yearPub = 2020, excerpt = "Five children left the school. None of them left the school whole." }
+  , Work { workId = 101, title = "Truth Telling", authorRef = 45, genre = Nonfiction, yearPub = 2023, excerpt = "We are not asking to be heard. We are telling you, and the telling itself is the work." }
+  , Work { workId = 102, title = "Making Love with the Land", authorRef = 26, genre = Nonfiction, yearPub = 2022, excerpt = "To love the land is to remember that you are it, and that it has always been loving you back." }
   ]
-
