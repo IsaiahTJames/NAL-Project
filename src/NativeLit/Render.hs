@@ -708,8 +708,10 @@ workDetailLoop name st w a mSideTrip = do
     withBorder BorderDouble $
     turquoise $
     box (title w)
-      [ amber  $ text (showGenre (genre w) ++ "  |  " ++ show (yearPub w))
-      , orange $ text ("by " ++ authorName a)
+      [ amber $ text (showGenre (genre w) ++ " | " ++ show (yearPub w) ++ " | " ++ show (pages w) ++ " pages")
+      , tightRow [ amber $ text "Published by ", withColor ColorBrightWhite $ text (if null (publisher w) then "Unknown" else publisher w) ]
+      , tightRow [ amber $ text "Awards: ", withColor ColorBrightWhite $ text (if null (awards w) then "None" else intercalate ", " (awards w)) ]
+      , orange $ text ("by " ++ authorName a ++ " (" ++ form w ++ ")")
       , br
       , withColor ColorBrightWhite $
           text ("\"" ++ excerpt w ++ "\"")

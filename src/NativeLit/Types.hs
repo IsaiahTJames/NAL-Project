@@ -52,4 +52,8 @@ data Work = Work
   , genre     :: Genre
   , yearPub   :: Int
   , excerpt   :: String
+  , pages     :: Int
+  , publisher :: String
+  , awards    :: [String]
+  , form      :: String 
   } deriving (Show, Eq)
